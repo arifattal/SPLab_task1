@@ -78,19 +78,25 @@ void oneC(int argc, char **argv){
     char data;
     int mode = 0; //plus or minus
     int num = 0;
+    int encMode = 0;
     char first;
     int firstSaved = 0; //a flag that lets us save the first char
-    if(argc == 3 && argv[2][1] == 'e'){
-        if(argv[2][0] == '+'){
-            mode = 1;
+
+    for(int i =0; i<argc; i++){ //flag the mode chosen
+        if((argv[i][0] == '-' || argv[i][0] == '+') && argv[i][1] == 'e'){ //enc mode
+            encMode = 1;
+            if(argv[i][0] == '+'){
+                mode = 1;
+            }
+            if ((int) argv[i][2] > 47 && (int) argv[i][2] < 58) {
+                num = (int) argv[i][2] - 48; //0-9
+            }
+            else {
+                num = (int) argv[i][2] - 55; //A-F
+            }
         }
-        if((int)argv[2][2] > 47 && (int)argv[2][2] < 58){
-            num = (int)argv[2][2] - 48; //0-9
-        }
-        else{ // A-F
-            num = (int)argv[2][2] - 55;
-        }
-        if(mode == 1){ //plus sign
+    }
+        if((mode == 1) && (encMode == 1)){ //plus sign and encode mode
             while((data = fgetc(in)) != '\n'){
                 if(firstSaved == 0){//save the first char
                     first = data;
@@ -104,7 +110,7 @@ void oneC(int argc, char **argv){
             }
             printf("%c", '\n'); //drop line
         }
-        if(mode == 0){
+        else if((mode == 0) && (encMode == 1)){
             while((data = fgetc(in)) != '\n'){
                 if(num > 0){ //ignore first num characters
                     num = num -1;
@@ -115,12 +121,12 @@ void oneC(int argc, char **argv){
             }
             printf("%c", '\n'); //drop line
         }
-    }
-    else{ //no encryption
-        oneA();
-    }
+        else{
+            oneA();
+        }
     fclose(out);
-}
+    }
+
 
 void oneD(int argc, char **argv){
     char data;
@@ -153,10 +159,14 @@ void oneD(int argc, char **argv){
         for(int i =0; i<argc; i++){
             if(argv[i][0] == '-' && argv[i][1] == 'i'){ //input mode
                 fp = fopen(argv[i] + 2, "r");
+                if (!fp){
+                    printf("%s", "file does not exist");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
         if( fp != NULL){
-            if(num > 0 && mode == 1){ //encryption mode and plus sign
+            if(encMode == 1 && mode == 1){ //encryption mode and plus sign
                 while(t == 1) {
                     data = fgetc(fp); //get letter from file
                     if(data == EOF){ //break while loop
@@ -175,7 +185,7 @@ void oneD(int argc, char **argv){
                 }
                 printf("%c", '\n'); //drop line
             }
-            else if(mode == 0){//encryption mode and minus sign | only read file mode(covers this case)
+            else if(encMode == 1 && mode == 0){//encryption mode and minus sign
                 while(t == 1) {
                     data = fgetc(fp); //get letter from file
                     if(data == EOF){ //break while loop
@@ -189,13 +199,30 @@ void oneD(int argc, char **argv){
                 }
                 printf("%c", '\n'); //drop line
             }
+            else if(encMode == 0){ //only input mode
+                while(t == 1) {
+                    data = fgetc(fp); //get letter from file
+                    if(data == EOF){ //break while loop
+                        t = 0;
+                    }
+                    if(t == 1){
+                        if(data>=65 && data<=90){
+                            printf("%c", '.');
+                        }
+                        else{
+                            printf("%c", data);
+                        }
+                    } //print letter from file
+                }
+                printf("%c", '\n'); //drop line
+            }
         }
         fclose(fp);
     }
     else if(inMode == 0 && encMode == 1){ //encryption mode only
         oneC(argc, argv);
     }
-    else{ //no encryption and file reading
+    else{ //no encryption and no file reading
         oneA();
     }
 
@@ -208,10 +235,12 @@ void two(int argc, char **argv){
     int num = 0;
     int outMode = 0;
     int inMode = 0;
+    int encMode = 0;
     char first;
     int firstSaved = 0; //a flag that lets us save the first char
     for(int i =0; i<argc; i++){ //flag the mode chosen
         if((argv[i][0] == '-' || argv[i][0] == '+') && argv[i][1] == 'e'){ //enc mode
+            encMode = 1;
             if(argv[i][0] == '+'){
                 mode = 1;
             }
@@ -232,7 +261,7 @@ void two(int argc, char **argv){
         printf("%c", 't');
         oneD(argc, argv);
     }
-    else if(outMode == 1 && inMode == 1){ //all modes are applied || input and output
+    else if(outMode == 1 && inMode == 1 && encMode == 1){ //all modes are applied
         FILE *fr; //file read
         FILE *fw; //file write
         for(int i =0; i<argc; i++){
@@ -241,6 +270,10 @@ void two(int argc, char **argv){
             }
             else if(argv[i][0] == '-' && argv[i][1] == 'i'){ //input mode
                 fr = fopen(argv[i] + 2, "r");
+                if (!fr){ //throw exception if file does not exist
+                    printf("%s", "file does not exist");
+                    exit(EXIT_FAILURE);
+                }
             }
         }
         if(fr != NULL){
@@ -258,7 +291,7 @@ void two(int argc, char **argv){
                         fputc(data, fw);} //print letter from file
                 }
                 while(num != 0){ //print the first char an extra num times
-                    fputc(data, fw);
+                    fputc(first, fw);
                     num = num - 1;
                 }
             }
@@ -279,7 +312,7 @@ void two(int argc, char **argv){
         fclose(fr);
         fclose(fw);
     }
-    else if(outMode == 1 && inMode == 0){ //output mode and encryption || outputMode
+    else if(outMode == 1 && inMode == 0 && encMode == 1){ //output mode and encryption
         FILE *fw; //file write
         FILE* out = stdout;
         FILE* in = stdin;
@@ -313,5 +346,58 @@ void two(int argc, char **argv){
         }
         fclose(fw);
         fclose(out);
+    }
+    else if(outMode == 1 && inMode == 0 && encMode == 0){
+        FILE *fw; //file write
+        FILE* out = stdout;
+        FILE* in = stdin;
+        for(int i =0; i<argc; i++){
+            if(argv[i][0] == '-' && argv[i][1] == 'o'){ //output mode
+                fw = fopen(argv[i] + 2, "w");
+            }
+        }
+        while((data = fgetc(in)) != '\n') {
+            if(data>=65 && data<=90){
+                fputc('.', fw);
+            }
+            else{
+                fputc(data, fw);
+            }
+        }
+        fclose(fw);
+        fclose(out);
+        }
+    else if(outMode == 1 && inMode == 1 && encMode == 0){//output mode and input mode
+        FILE *fr; //file read
+        FILE *fw; //file write
+        for(int i =0; i<argc; i++){
+            if(argv[i][0] == '-' && argv[i][1] == 'o'){ //output mode
+                fw = fopen(argv[i] + 2, "w");
+            }
+            else if(argv[i][0] == '-' && argv[i][1] == 'i'){ //input mode
+                fr = fopen(argv[i] + 2, "r");
+                if (!fr){ //throw exception if file does not exist
+                    printf("%s", "file does not exist");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+        if(fr != NULL){
+            while(t == 1){
+                data = fgetc(fr);
+                if(data == EOF){
+                    t = 0;
+                }
+                if(t == 1){
+                    if(data>=65 && data<=90){
+                        fputc('.', fw);
+                    }
+                    else{
+                        fputc(data, fw);
+                        }
+                    }
+            }
+            fclose(fw);
+        }
     }
 }
